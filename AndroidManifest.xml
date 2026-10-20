@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="me.efesser.flauncher.arabic" android:versionCode="3" android:versionName="1.2">
+  <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="30" />
+  <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+  <uses-feature android:name="android.software.leanback" android:required="false" />
+  <queries>
+    <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent>
+    <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LEANBACK_LAUNCHER" /></intent>
+    <package android:name="com.cultraview.livetv" />
+    <package android:name="com.android.settings" />
+    <package android:name="com.cultraview.setting" />
+  </queries>
+  <application android:label="واجهة التلفزيون" android:icon="@drawable/icon" android:banner="@drawable/banner" android:theme="@style/AppTheme" android:supportsRtl="true" android:allowBackup="true">
+    <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="landscape" android:launchMode="singleTask" android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|locale|layoutDirection">
+      <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /><category android:name="android.intent.category.LEANBACK_LAUNCHER" /></intent-filter>
+      <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.HOME" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
+    </activity>
+  </application>
+</manifest>

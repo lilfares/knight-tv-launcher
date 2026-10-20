@@ -1,0 +1,15 @@
+﻿*.jks
+*.keystore
+*.pem
+*.key
+*.apk
+*.aab
+*.dex
+*.class
+*.jar
+build/
+dist/
+local.properties
+.env
+.env.*
+__pycache__/
