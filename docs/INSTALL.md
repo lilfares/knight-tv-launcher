@@ -1,4 +1,4 @@
-﻿# Install and configure
+# Install and configure
 
 1. Download Google's official Android SDK Platform Tools for Windows and extract them.
 2. Connect the PC and TV to the same trusted local network. Find the TV's current IP in its network settings.
@@ -16,7 +16,7 @@ Approve the debugging authorization on the TV. Continue only when its state is `
 6. Build the APK, then install and open it:
 
 ```powershell
-.\adb.exe -s TV_IP:5555 install -r "dist\arabic-tv-1.2.apk"
+.\adb.exe -s TV_IP:5555 install -r "dist\arabic-tv-1.3.apk"
 .\adb.exe -s TV_IP:5555 shell am start -n me.efesser.flauncher.arabic/.MainActivity
 ```
 
