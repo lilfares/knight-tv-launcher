@@ -76,6 +76,8 @@ public class MainActivity extends Activity {
     private final List<RowGroup> appGroups = new ArrayList<>();
     private final List<Tile> deviceTiles = new ArrayList<>();
     private LinearLayout root;
+    private AmbientScreen ambient;
+    private boolean resumed, previewAmbient;
     private SharedPreferences prefs;
     private TextView title, subtitle, clock;
     private LinearLayout content;
@@ -131,11 +133,15 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        resumed=true;
+        if(ambient!=null)ambient.setHostActive(hasWindowFocus());
         handler.removeCallbacks(tick);
         tick.run();
         if(refreshPending && loaded) { refreshPending=false; build(); }
     }
     @Override protected void onPause() {
+        resumed=false;
+        if(ambient!=null)ambient.setHostActive(false);
         handler.removeCallbacks(tick);
         for(View target:targets.values()) if(target instanceof Tile) ((Tile)target).cancelHold();
         prefs.edit().putString("lastFocus",lastFocus).putInt("scrollY",scroll==null?0:scroll.getScrollY()).apply();
@@ -151,6 +157,25 @@ public class MainActivity extends Activity {
         if(scroll!=null && scroll.getScrollY()>0 && !appGroups.isEmpty()) {
             appGroups.get(0).tiles.get(0).requestFocus(); scroll.smoothScrollTo(0,0);
         } else if(!deviceTiles.isEmpty()) { deviceTiles.get(0).requestFocus(); }
+    }
+    @Override public void onWindowFocusChanged(boolean focus) {
+        super.onWindowFocusChanged(focus);
+        if(ambient!=null) {
+            ambient.setHostActive(resumed&&focus);
+            if(focus&&resumed&&previewAmbient) {previewAmbient=false;ambient.preview();}
+        }
+    }
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if(ambient!=null&&ambient.interceptKey(event))return true;
+        return super.dispatchKeyEvent(event);
+    }
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if(ambient!=null&&ambient.interceptTouch(event))return true;
+        return super.dispatchTouchEvent(event);
+    }
+    @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if(ambient!=null&&ambient.interceptMotion(event))return true;
+        return super.dispatchGenericMotionEvent(event);
     }
     @Override public boolean onKeyDown(int key,KeyEvent event) {
         if(key==KeyEvent.KEYCODE_MENU || key==KeyEvent.KEYCODE_ESCAPE) return true;
@@ -170,6 +195,7 @@ public class MainActivity extends Activity {
     }
     @Override protected void onDestroy() {
         destroyed = true;
+        if(ambient!=null)ambient.close();
         handler.removeCallbacksAndMessages(null);
         unregisterReceiver(packages);
         worker.shutdownNow();
@@ -256,7 +282,11 @@ public class MainActivity extends Activity {
         float widthDp=getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density;
         float tileWidth=(widthDp-96-14-4*20)/5f;
         artHeight=dp(tileWidth*9f/16f);
-        setContentView(root);
+        FrameLayout host=new FrameLayout(this);
+        host.addView(root,new FrameLayout.LayoutParams(-1,-1));
+        ambient=new AmbientScreen(this,prefs);
+        host.addView(ambient,new FrameLayout.LayoutParams(-1,-1));
+        setContentView(host);
         clock.setText(DateFormat.getTimeInstance(DateFormat.SHORT,new Locale("ar")).format(new Date()));
     }
 
@@ -432,7 +462,7 @@ public class MainActivity extends Activity {
     }
 
     private void options() {
-        String[] items={motion?"تقليل الحركة":"تفعيل الحركة الخفيفة","تصفير الأكثر استخدامًا","حول الواجهة"};
+        String[] items={motion?"تقليل الحركة":"تفعيل الحركة الخفيفة","تصفير الأكثر استخدامًا","حول الواجهة","شاشة الاستراحة"};
         new AlertDialog.Builder(this).setTitle("خيارات الواجهة").setItems(items,(dialog,which) -> {
             if(which==0) {
                 motion=!motion;prefs.edit().putBoolean("reduceMotion",!motion).apply();
@@ -445,9 +475,26 @@ public class MainActivity extends Activity {
                     edit.apply(); build();
                 }).setNegativeButton("إلغاء",null).show();
             }
-            if(which==2) new AlertDialog.Builder(this).setTitle("واجهة التلفزيون — ١٫١")
+            if(which==3) ambientOptions();
+            if(which==2) new AlertDialog.Builder(this).setTitle("Knight TV Launcher — 1.3")
                 .setMessage("واجهة عربية خفيفة.\nالمفضلة بالترتيب الذي تختاره.\nالأكثر استخدامًا يتعلّم من التطبيقات التي تفتحها هنا.\n\nمستوحاة من FLauncher\n© 2021 Étienne Fesser\nGPL-3.0-or-later\ngitlab.com/flauncher/flauncher")
                 .setPositiveButton("حسنًا",null).show();
+        }).setNegativeButton("إغلاق",null).show();
+    }
+
+    private void ambientOptions() {
+        String[] items={prefs.getBoolean("ambientEnabled",true)?"إيقاف شاشة الاستراحة":"تفعيل شاشة الاستراحة",
+            "مدة الانتظار: "+prefs.getInt("ambientMinutes",5)+" دقائق",
+            "تغيير الصورة: "+prefs.getInt("ambientRotateSeconds",120)+" ثانية","معاينة الآن"};
+        new AlertDialog.Builder(this).setTitle("شاشة الاستراحة").setItems(items,(dialog,which) -> {
+            if(which==0) {prefs.edit().putBoolean("ambientEnabled",!prefs.getBoolean("ambientEnabled",true)).apply();ambient.resetIdle();}
+            if(which==1) new AlertDialog.Builder(this).setTitle("مدة الانتظار").setItems(new String[]{"1 دقيقة","3 دقائق","5 دقائق","10 دقائق"},(d,w) -> {
+                prefs.edit().putInt("ambientMinutes",new int[]{1,3,5,10}[w]).apply();ambient.resetIdle();
+            }).setNegativeButton("إلغاء",null).show();
+            if(which==2) new AlertDialog.Builder(this).setTitle("تغيير الصورة").setItems(new String[]{"30 ثانية","60 ثانية","120 ثانية","300 ثانية"},(d,w) -> {
+                prefs.edit().putInt("ambientRotateSeconds",new int[]{30,60,120,300}[w]).apply();
+            }).setNegativeButton("إلغاء",null).show();
+            if(which==3)previewAmbient=true;
         }).setNegativeButton("إغلاق",null).show();
     }
 
@@ -621,7 +668,26 @@ public class MainActivity extends Activity {
             return key==KeyEvent.KEYCODE_DPAD_CENTER || key==KeyEvent.KEYCODE_ENTER ||
                 key==KeyEvent.KEYCODE_NUMPAD_ENTER || key==KeyEvent.KEYCODE_BUTTON_A;
         }
-        @Override public boolean onKeyDown(int key,KeyEvent event) {
+        @Override public void onWindowFocusChanged(boolean focus) {
+        super.onWindowFocusChanged(focus);
+        if(ambient!=null) {
+            ambient.setHostActive(resumed&&focus);
+            if(focus&&resumed&&previewAmbient) {previewAmbient=false;ambient.preview();}
+        }
+    }
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if(ambient!=null&&ambient.interceptKey(event))return true;
+        return super.dispatchKeyEvent(event);
+    }
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if(ambient!=null&&ambient.interceptTouch(event))return true;
+        return super.dispatchTouchEvent(event);
+    }
+    @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if(ambient!=null&&ambient.interceptMotion(event))return true;
+        return super.dispatchGenericMotionEvent(event);
+    }
+    @Override public boolean onKeyDown(int key,KeyEvent event) {
             if(!selectKey(key)) return super.onKeyDown(key,event);
             if(event.getRepeatCount()==0) {
                 keyHeld=true; longTriggered=false; setPressed(true);
