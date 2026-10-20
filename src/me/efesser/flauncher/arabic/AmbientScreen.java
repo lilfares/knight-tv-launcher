@@ -4,9 +4,7 @@ import android.app.Activity;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.BitmapRegionDecoder;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
@@ -15,7 +13,6 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -40,6 +37,8 @@ final class AmbientScreen extends FrameLayout {
     private final Set<Integer> swallowedKeys=new HashSet<>();
     private boolean active, showing, closed, swallowTouch, decoding;
     private int generation, scene=-1;
+    private static final int[] SCENES={R.raw.scene_mountains,R.raw.scene_city,R.raw.scene_coast,
+        R.raw.scene_dunes,R.raw.scene_forest,R.raw.scene_lake};
     private Bitmap bitmap;
     private View previousFocus;
     private final Runnable idle=() -> show();
@@ -150,19 +149,17 @@ final class AmbientScreen extends FrameLayout {
     }
     private void loadNext() {
         if(decoding||!showing||!active)return;
-        decoding=true;final int token=generation;final int next=(scene+1)%6;
+        decoding=true;final int token=generation;final int next=(scene+1)%SCENES.length;
         decoder.execute(() -> {
             Bitmap decoded=null;
-            try(InputStream input=getResources().openRawResource(R.raw.ambient_scenes)) {
-                BitmapRegionDecoder regions=BitmapRegionDecoder.newInstance(input,false);
-                try {
-                    int w=regions.getWidth()/2,h=regions.getHeight()/3;
-                    int x=(next%2)*w,y=(next/2)*h;
-                    BitmapFactory.Options options=new BitmapFactory.Options();options.inPreferredConfig=Bitmap.Config.RGB_565;
-                    options.inSampleSize=1;
-                    while(w/(options.inSampleSize*2)>=1280&&h/(options.inSampleSize*2)>=720)options.inSampleSize*=2;
-                    decoded=regions.decodeRegion(new Rect(x,y,x+w,y+h),options);
-                } finally {regions.recycle();}
+            try {
+                BitmapFactory.Options bounds=new BitmapFactory.Options();bounds.inJustDecodeBounds=true;
+                try(InputStream input=getResources().openRawResource(SCENES[next])) {BitmapFactory.decodeStream(input,null,bounds);}
+                BitmapFactory.Options options=new BitmapFactory.Options();options.inPreferredConfig=Bitmap.Config.RGB_565;
+                options.inSampleSize=1;
+                // Keep crisp Full HD detail without allocating a full 4K bitmap on a 1 GB TV.
+                while(bounds.outWidth/(options.inSampleSize*2)>=1920&&bounds.outHeight/(options.inSampleSize*2)>=1080)options.inSampleSize*=2;
+                try(InputStream input=getResources().openRawResource(SCENES[next])) {decoded=BitmapFactory.decodeStream(input,null,options);}
             } catch(Exception ignored) { }
             final Bitmap ready=decoded;
             handler.post(() -> {
@@ -172,7 +169,7 @@ final class AmbientScreen extends FrameLayout {
                     if(!closed&&showing&&active)loadNext();return;
                 }
                 if(ready!=null) {
-                    Bitmap old=bitmap;bitmap=ready;picture.setImageBitmap(ready);scene=next;
+                    bitmap=ready;picture.setImageBitmap(ready);scene=next;
                     // Let Android release displayed bitmaps after rendering completes.
                     if(!prefs.getBoolean("reduceMotion",false)) {picture.setAlpha(.35f);picture.animate().alpha(1f).setDuration(700).start();}
                     else picture.setAlpha(1f);
