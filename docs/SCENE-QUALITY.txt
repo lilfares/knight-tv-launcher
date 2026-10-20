@@ -1,0 +1,6 @@
+mountains: 1672 x 941 pixels; 570970 bytes
+city: 1672 x 941 pixels; 559267 bytes
+coast: 1672 x 941 pixels; 740992 bytes
+dunes: 1672 x 941 pixels; 362660 bytes
+forest: 1672 x 941 pixels; 865587 bytes
+lake: 1672 x 941 pixels; 601002 bytes

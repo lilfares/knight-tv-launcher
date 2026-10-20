@@ -13,12 +13,12 @@ Open خيارات الواجهة → شاشة الاستراحة.
 
 ## Lightweight operation
 
-Six AI-generated scenes are packed into one 2-column × 3-row PNG atlas. Android decodes one region at a time on a single worker; the atlas is never decoded as a full bitmap. Images use RGB565. The display has a short fade-in unless Reduce motion is enabled. There is no continuous pan/zoom, network access, service, or startup receiver. Keep-screen-on applies only while the ambient screen is visible; system display timeout settings are not changed.
+Six AI-generated scenes are stored as separate high-resolution JPEG files, preserving full scenic detail instead of enlarging small collage panels. Android decodes one photograph at a time on a single worker, using RGB565 and a Full HD decoding target to limit memory. The display has a short fade-in unless Reduce motion is enabled. There is no continuous pan/zoom, network access, service, or startup receiver. Keep-screen-on applies only while the ambient screen is visible; system display timeout settings are not changed.
 
 Scenes: alpine lake, waterfront city, Mediterranean coast, Arabian dunes, forest, and autumn mountain lake. These are generated illustrations of scenery, not documentary location photos.
 
 ## Code
 
-AmbientScreen.java owns timer, clock/date rendering, image decoding, and dismissal. MainActivity.java forwards activity focus/lifecycle and input events. To replace scenes, preserve the exact equal 2 × 3 atlas grid with 16:9 cells; add no gutters, labels, or baked-in clock text.
+AmbientScreen.java owns timer, clock/date rendering, image decoding, and dismissal. MainActivity.java forwards activity focus/lifecycle and input events. To replace scenes, use separate sharp 16:9 scene_*.jpg resources. Do not include baked-in clock text; the clock and dates are native text.
 
 Version 1.2 APK/source remain backed up locally. Keep the original private signing key for updates; it is never uploaded.
